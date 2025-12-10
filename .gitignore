@@ -162,6 +162,9 @@ Thumbs.db
 # Test coverage
 coverage/
 
+# Database
+data/
+
 # Logs
 *.log
 npm-debug.log*

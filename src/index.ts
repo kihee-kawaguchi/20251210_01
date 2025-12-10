@@ -15,18 +15,19 @@ async function main() {
     fs.mkdirSync('./data', { recursive: true });
   }
 
-  const noteApiToken = process.env.NOTE_API_TOKEN;
+  const db = new DatabaseManager('./data/app.db');
+  console.log('✅ Database initialized');
+
+  // 設定を読み込み（DB優先、なければ環境変数）
+  let noteApiToken = db.getConfig('NOTE_API_TOKEN') || process.env.NOTE_API_TOKEN;
   const noteBaseUrl = process.env.NOTE_BASE_URL || 'https://note.com/api/v2';
   const port = parseInt(process.env.PORT || '3000');
   const usePuppeteer = process.env.USE_PUPPETEER === 'true';
 
   if (!noteApiToken) {
-    console.warn('⚠️  NOTE_API_TOKEN not set in .env file');
-    console.warn('⚠️  Note posting will not work without a valid API token');
+    console.warn('⚠️  NOTE_API_TOKEN not set');
+    console.warn('⚠️  Please configure it in the Settings tab or .env file');
   }
-
-  const db = new DatabaseManager('./data/app.db');
-  console.log('✅ Database initialized');
 
   const scraper = new WebScraper(usePuppeteer);
   console.log(`✅ Web scraper initialized (using ${usePuppeteer ? 'Puppeteer' : 'Cheerio'})`);

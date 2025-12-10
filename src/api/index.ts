@@ -147,6 +147,13 @@ export class APIServer {
         }
 
         this.db.setConfig(key, value);
+
+        // NOTE_API_TOKENが更新された場合、noteClientも更新
+        if (key === 'NOTE_API_TOKEN') {
+          this.noteClient.updateToken(value);
+          console.log('✅ Note API token updated');
+        }
+
         res.json({ success: true, message: 'Config updated' });
       } catch (error: any) {
         res.status(500).json({ error: error.message });

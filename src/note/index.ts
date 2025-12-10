@@ -5,13 +5,27 @@ import { NoteArticle, NoteAPIResponse, ScrapedContent } from '../types/index.js'
 export class NoteClient {
   private client: AxiosInstance;
   private apiToken: string;
+  private baseUrl: string;
 
   constructor(apiToken: string, baseUrl: string = 'https://note.com/api/v2') {
     this.apiToken = apiToken;
+    this.baseUrl = baseUrl;
     this.client = axios.create({
       baseURL: baseUrl,
       headers: {
         'Authorization': `Bearer ${apiToken}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+  }
+
+  updateToken(newToken: string) {
+    this.apiToken = newToken;
+    this.client = axios.create({
+      baseURL: this.baseUrl,
+      headers: {
+        'Authorization': `Bearer ${newToken}`,
         'Content-Type': 'application/json'
       },
       timeout: 30000
