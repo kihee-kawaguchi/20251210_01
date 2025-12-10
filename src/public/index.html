@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Scraper to Note - 管理画面</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #333; margin-bottom: 30px; }
+        .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        button:hover { background: #0056b3; }
+        button.danger { background: #dc3545; }
+        button.danger:hover { background: #c82333; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
+        .tab { padding: 10px 20px; cursor: pointer; border: none; background: none; color: #666; }
+        .tab.active { color: #007bff; border-bottom: 2px solid #007bff; margin-bottom: -2px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f8f9fa; font-weight: bold; }
+        .status { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .status.pending { background: #ffc107; color: #000; }
+        .status.processing { background: #17a2b8; color: white; }
+        .status.completed { background: #28a745; color: white; }
+        .status.failed { background: #dc3545; color: white; }
+        .checkbox-group { display: flex; align-items: center; gap: 10px; }
+        .checkbox-group input[type="checkbox"] { width: auto; }
+        .message { padding: 10px; border-radius: 4px; margin-bottom: 15px; }
+        .message.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .message.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Web Scraper to Note - 管理画面</h1>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('scrape')">スクレイピング実行</button>
+            <button class="tab" onclick="switchTab('tasks')">タスク一覧</button>
+            <button class="tab" onclick="switchTab('history')">投稿履歴</button>
+            <button class="tab" onclick="switchTab('schedule')">スケジュール管理</button>
+        </div>
+
+        <div id="scrape-tab" class="tab-content active">
+            <div class="card">
+                <h2>スクレイピング & note投稿</h2>
+                <div id="scrape-message"></div>
+                <form onsubmit="scrapeAndPost(event)">
+                    <div class="form-group">
+                        <label>スクレイピング対象URL</label>
+                        <input type="url" id="scrape-url" placeholder="https://example.com/article" required>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="auto-publish">
+                        <label for="auto-publish">自動公開（チェックなしで下書き保存）</label>
+                    </div>
+                    <button type="submit">スクレイピング開始</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="tasks-tab" class="tab-content">
+            <div class="card">
+                <h2>タスク一覧</h2>
+                <button onclick="loadTasks()">更新</button>
+                <table id="tasks-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>URL</th>
+                            <th>ステータス</th>
+                            <th>作成日時</th>
+                            <th>完了日時</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tasks-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="history-tab" class="tab-content">
+            <div class="card">
+                <h2>投稿履歴</h2>
+                <button onclick="loadHistory()">更新</button>
+                <table id="history-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>タイトル</th>
+                            <th>note URL</th>
+                            <th>投稿日時</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="schedule-tab" class="tab-content">
+            <div class="card">
+                <h2>スケジュール設定</h2>
+                <div id="schedule-message"></div>
+                <form onsubmit="createSchedule(event)">
+                    <div class="form-group">
+                        <label>タスク名</label>
+                        <input type="text" id="schedule-name" placeholder="daily-scrape" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Cron式 (例: 0 9 * * * = 毎日9時)</label>
+                        <input type="text" id="schedule-cron" placeholder="0 9 * * *" required>
+                    </div>
+                    <div class="form-group">
+                        <label>対象URL</label>
+                        <input type="url" id="schedule-url" placeholder="https://example.com/article" required>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="schedule-autopublish">
+                        <label for="schedule-autopublish">自動公開</label>
+                    </div>
+                    <button type="submit">スケジュール登録</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>アクティブなスケジュール</h2>
+                <button onclick="loadSchedules()">更新</button>
+                <ul id="schedules-list"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
+            document.getElementById(`${tab}-tab`).classList.add('active');
+
+            if (tab === 'tasks') loadTasks();
+            if (tab === 'history') loadHistory();
+            if (tab === 'schedule') loadSchedules();
+        }
+
+        async function scrapeAndPost(e) {
+            e.preventDefault();
+            const url = document.getElementById('scrape-url').value;
+            const autoPublish = document.getElementById('auto-publish').checked;
+            const messageDiv = document.getElementById('scrape-message');
+
+            try {
+                const response = await fetch('/api/scrape', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, autoPublish })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    messageDiv.innerHTML = '<div class="message success">スクレイピングを開始しました！</div>';
+                    document.getElementById('scrape-url').value = '';
+                } else {
+                    messageDiv.innerHTML = `<div class="message error">エラー: ${data.error}</div>`;
+                }
+            } catch (error) {
+                messageDiv.innerHTML = `<div class="message error">エラー: ${error.message}</div>`;
+            }
+        }
+
+        async function loadTasks() {
+            try {
+                const response = await fetch('/api/tasks');
+                const data = await response.json();
+
+                const tbody = document.getElementById('tasks-body');
+                tbody.innerHTML = '';
+
+                data.data.forEach(task => {
+                    const row = `
+                        <tr>
+                            <td>${task.id}</td>
+                            <td>${task.url}</td>
+                            <td><span class="status ${task.status}">${task.status}</span></td>
+                            <td>${new Date(task.createdAt).toLocaleString('ja-JP')}</td>
+                            <td>${task.completedAt ? new Date(task.completedAt).toLocaleString('ja-JP') : '-'}</td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+            } catch (error) {
+                console.error('Failed to load tasks:', error);
+            }
+        }
+
+        async function loadHistory() {
+            try {
+                const response = await fetch('/api/history');
+                const data = await response.json();
+
+                const tbody = document.getElementById('history-body');
+                tbody.innerHTML = '';
+
+                data.data.forEach(item => {
+                    const row = `
+                        <tr>
+                            <td>${item.id}</td>
+                            <td>${item.title}</td>
+                            <td><a href="${item.noteUrl}" target="_blank">${item.noteUrl}</a></td>
+                            <td>${new Date(item.postedAt).toLocaleString('ja-JP')}</td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+            } catch (error) {
+                console.error('Failed to load history:', error);
+            }
+        }
+
+        async function createSchedule(e) {
+            e.preventDefault();
+            const name = document.getElementById('schedule-name').value;
+            const cronExpression = document.getElementById('schedule-cron').value;
+            const url = document.getElementById('schedule-url').value;
+            const autoPublish = document.getElementById('schedule-autopublish').checked;
+            const messageDiv = document.getElementById('schedule-message');
+
+            try {
+                const response = await fetch('/api/schedule', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, cronExpression, url, autoPublish })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    messageDiv.innerHTML = '<div class="message success">スケジュールを登録しました！</div>';
+                    document.getElementById('schedule-name').value = '';
+                    document.getElementById('schedule-cron').value = '';
+                    document.getElementById('schedule-url').value = '';
+                    loadSchedules();
+                } else {
+                    messageDiv.innerHTML = `<div class="message error">エラー: ${data.error}</div>`;
+                }
+            } catch (error) {
+                messageDiv.innerHTML = `<div class="message error">エラー: ${error.message}</div>`;
+            }
+        }
+
+        async function loadSchedules() {
+            try {
+                const response = await fetch('/api/schedule');
+                const data = await response.json();
+
+                const list = document.getElementById('schedules-list');
+                list.innerHTML = '';
+
+                data.data.forEach(name => {
+                    const item = document.createElement('li');
+                    item.innerHTML = `${name} <button class="danger" onclick="stopSchedule('${name}')">停止</button>`;
+                    list.appendChild(item);
+                });
+            } catch (error) {
+                console.error('Failed to load schedules:', error);
+            }
+        }
+
+        async function stopSchedule(name) {
+            try {
+                await fetch(`/api/schedule/${name}`, { method: 'DELETE' });
+                loadSchedules();
+            } catch (error) {
+                console.error('Failed to stop schedule:', error);
+            }
+        }
+    </script>
+</body>
+</html>
