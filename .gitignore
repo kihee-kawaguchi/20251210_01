@@ -165,6 +165,9 @@ coverage/
 # Database
 data/
 
+# Exported markdown files
+exports/
+
 # Logs
 *.log
 npm-debug.log*

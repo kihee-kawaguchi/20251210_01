@@ -36,6 +36,8 @@ export class APIServer {
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(express.static(path.join(__dirname, '../public')));
+    // exportsディレクトリを静的ファイルとして配信
+    this.app.use('/exports', express.static(path.join(process.cwd(), 'exports')));
   }
 
   private setupRoutes() {

@@ -151,31 +151,98 @@ export class NoteClient {
     };
   }
 
+  async scrapeAndExport(
+    url: string,
+    scraper: any
+  ): Promise<{ success: boolean; markdown?: string; filepath?: string; error?: string }> {
+    try {
+      console.log(`Scraping ${url}...`);
+      const scraped = await scraper.scrape(url);
+
+      console.log('Creating markdown...');
+      let markdown = `# ${scraped.title}\n\n`;
+      markdown += `${scraped.content}\n\n`;
+
+      // 画像リンク追加
+      if (scraped.images.length > 0) {
+        markdown += `\n## 画像\n\n`;
+        scraped.images.slice(0, 10).forEach((img: any, idx: number) => {
+          markdown += `![画像${idx + 1}](${img.url})\n\n`;
+        });
+      }
+
+      // メタ情報
+      markdown += `\n---\n\n`;
+      markdown += `**元記事:** ${scraped.url}\n\n`;
+
+      if (scraped.metadata.author) {
+        markdown += `**著者:** ${scraped.metadata.author}\n\n`;
+      }
+
+      if (scraped.metadata.publishDate) {
+        markdown += `**公開日:** ${scraped.metadata.publishDate}\n\n`;
+      }
+
+      if (scraped.metadata.tags && scraped.metadata.tags.length > 0) {
+        markdown += `**タグ:** ${scraped.metadata.tags.map((t: string) => `#${t}`).join(' ')}\n\n`;
+      }
+
+      markdown += `\n> このコンテンツは自動スクレイピングにより取得されました。\n`;
+      markdown += `> noteに投稿する際は、著作権に注意してください。\n`;
+
+      // ファイル保存
+      const fs = await import('fs');
+      const path = await import('path');
+      const exportDir = path.join(process.cwd(), 'exports');
+
+      if (!fs.existsSync(exportDir)) {
+        fs.mkdirSync(exportDir, { recursive: true });
+      }
+
+      const filename = `note_${Date.now()}.md`;
+      const filepath = path.join(exportDir, filename);
+
+      fs.writeFileSync(filepath, markdown, 'utf8');
+
+      console.log(`✅ Markdown exported to ${filepath}`);
+
+      return {
+        success: true,
+        markdown,
+        filepath: `/exports/${filename}`
+      };
+    } catch (error: any) {
+      console.error('Export failed:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
   async scrapeAndPost(
     url: string,
     scraper: any,
     autoPublish: boolean = false
   ): Promise<NoteAPIResponse> {
-    console.log(`Scraping ${url}...`);
-    const scraped = await scraper.scrape(url);
+    // マークダウンエクスポートにフォールバック
+    console.log('⚠️ Note API is not available. Exporting as markdown instead...');
+    const exportResult = await this.scrapeAndExport(url, scraper);
 
-    console.log('Downloading images...');
-    for (const image of scraped.images) {
-      try {
-        image.buffer = await scraper.downloadImage(image.url);
-      } catch (error) {
-        console.error(`Failed to download ${image.url}:`, error);
-      }
+    if (exportResult.success) {
+      return {
+        success: true,
+        data: {
+          id: 'exported',
+          url: exportResult.filepath || '',
+          noteId: 'markdown-export'
+        }
+      };
+    } else {
+      return {
+        success: false,
+        error: exportResult.error || 'Export failed'
+      };
     }
-
-    console.log('Converting to note article...');
-    const article = await this.convertScrapedToArticle(scraped, true);
-
-    if (autoPublish) {
-      article.status = 'publish';
-    }
-
-    console.log('Posting to note...');
-    return await this.createArticle(article);
   }
 }

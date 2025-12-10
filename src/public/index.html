@@ -210,8 +210,10 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    messageDiv.innerHTML = '<div class="message success">スクレイピングを開始しました！</div>';
+                    messageDiv.innerHTML = '<div class="message success">スクレイピングを開始しました！完了後、投稿履歴タブからマークダウンファイルをダウンロードできます。</div>';
                     document.getElementById('scrape-url').value = '';
+                    // タスク一覧を自動更新
+                    setTimeout(loadTasks, 1000);
                 } else {
                     messageDiv.innerHTML = `<div class="message error">エラー: ${data.error}</div>`;
                 }
@@ -254,11 +256,13 @@
                 tbody.innerHTML = '';
 
                 data.data.forEach(item => {
+                    const isMarkdownExport = item.noteUrl && item.noteUrl.startsWith('/exports/');
+                    const linkText = isMarkdownExport ? 'マークダウンをダウンロード' : item.noteUrl;
                     const row = `
                         <tr>
                             <td>${item.id}</td>
                             <td>${item.title}</td>
-                            <td><a href="${item.noteUrl}" target="_blank">${item.noteUrl}</a></td>
+                            <td>${isMarkdownExport ? `<a href="${item.noteUrl}" download class="button">${linkText}</a>` : `<a href="${item.noteUrl}" target="_blank">${linkText}</a>`}</td>
                             <td>${new Date(item.postedAt).toLocaleString('ja-JP')}</td>
                         </tr>
                     `;
